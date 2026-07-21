@@ -1,7 +1,2 @@
 word,hint
-API,"A way for software systems to talk to each other."
-CSV,"Comma-separated values: a simple text format for tabular data."
-tooltip,"A small hint shown when someone hovers over or focuses an item."
-payment,"The movement of money from one party to another."
-webhook,"An automated message sent from one app to another when something happens."
-HTML,"The markup language used to structure content on web pages."
+MAS,"Merchant Administration System, the legacy portal to manage Vitesse services."

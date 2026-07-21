@@ -8,14 +8,16 @@
   var scopeSelector = getDatasetValue("scope") || "body";
   var wholeWord = getDatasetValue("wholeWord") !== "false";
   var caseSensitive = getDatasetValue("caseSensitive") === "true";
-  var observeChanges = getDatasetValue("observe") === "true";
+  var observeChanges = getDatasetValue("observe") !== "false";
   var skipInteractive = getDatasetValue("skipInteractive") !== "false";
   var maxMatches = parseInteger(getDatasetValue("maxMatches"), 0);
   var hints = [];
   var hintLookup = new Map();
   var matcher = null;
   var matchCount = 0;
+  var matchedTermKeys = new Set();
   var observer = null;
+  var refreshTimer = null;
   var tooltip = null;
   var activeTerm = null;
 
@@ -92,10 +94,13 @@
       return;
     }
 
-    var scanRoot = root || document.querySelector(scopeSelector) || document.body;
+    var scopeRoot = document.querySelector(scopeSelector) || document.body;
+    var scanRoot = root || scopeRoot;
     if (!scanRoot) {
       return;
     }
+
+    matchedTermKeys = getWrappedTermKeys(scopeRoot);
 
     walkTextNodes(scanRoot, function (textNode) {
       wrapTextNode(textNode);
@@ -114,6 +119,7 @@
     }
 
     matchCount = 0;
+    matchedTermKeys = new Set();
 
     if (observeChanges && matcher) {
       connectObserver();
@@ -169,9 +175,10 @@
 
     while ((match = matcher.exec(text))) {
       var matchedText = match[0];
-      var term = hintLookup.get(getLookupKey(matchedText));
+      var termKey = getLookupKey(matchedText);
+      var term = hintLookup.get(termKey);
 
-      if (!term) {
+      if (!term || matchedTermKeys.has(termKey)) {
         continue;
       }
 
@@ -187,6 +194,7 @@
       wrapped.textContent = matchedText;
       fragment.appendChild(wrapped);
 
+      matchedTermKeys.add(termKey);
       lastIndex = match.index + matchedText.length;
       matchCount += 1;
 
@@ -211,7 +219,7 @@
       return true;
     }
 
-    var skippedTags = "script, style, noscript, iframe, canvas, svg, textarea, input, select, option";
+    var skippedTags = "script, style, noscript, iframe, canvas, svg, textarea, input, select, option, h1, h2, h3, h4, h5, h6";
     var interactiveTags = "a, button, label, summary, [contenteditable='true']";
     var selector = skippedTags + ", .hh-term, [data-hover-hints-skip]";
 
@@ -220,6 +228,17 @@
     }
 
     return Boolean(element.closest(selector));
+  }
+
+  function getWrappedTermKeys(root) {
+    var keys = new Set();
+    var wrappedTerms = root ? root.querySelectorAll(".hh-term") : [];
+
+    wrappedTerms.forEach(function (node) {
+      keys.add(getLookupKey(node.textContent || ""));
+    });
+
+    return keys;
   }
 
   function parseCsv(csvText) {
@@ -473,25 +492,55 @@
     }
 
     observer = new MutationObserver(function (mutations) {
+      var shouldRefreshScope = false;
+
       mutations.forEach(function (mutation) {
+        if (mutation.type === "characterData" && mutation.target.parentElement) {
+          refresh(mutation.target.parentElement);
+          shouldRefreshScope = true;
+          return;
+        }
+
         mutation.addedNodes.forEach(function (node) {
           if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
             refresh(node.parentElement);
+            shouldRefreshScope = true;
           } else if (node.nodeType === Node.ELEMENT_NODE) {
             refresh(node);
+            shouldRefreshScope = true;
           }
         });
       });
+
+      if (shouldRefreshScope) {
+        scheduleRefresh();
+      }
     });
 
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
   }
 
   function disconnectObserver() {
+    if (refreshTimer) {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+
     if (observer) {
       observer.disconnect();
       observer = null;
     }
+  }
+
+  function scheduleRefresh() {
+    if (refreshTimer) {
+      window.clearTimeout(refreshTimer);
+    }
+
+    refreshTimer = window.setTimeout(function () {
+      refreshTimer = null;
+      refresh();
+    }, 120);
   }
 
   function getDatasetValue(name) {

@@ -15,7 +15,7 @@
   var hintLookup = new Map();
   var matcher = null;
   var matchCount = 0;
-  var matchedTermKeys = new Set();
+  var matchedTermKeysBySection = new Map();
   var observer = null;
   var refreshTimer = null;
   var tooltip = null;
@@ -100,16 +100,25 @@
       return;
     }
 
-    matchedTermKeys = getWrappedTermKeys(scopeRoot);
+    matchedTermKeysBySection = getWrappedTermKeysBySection(scopeRoot);
 
     walkTextNodes(scanRoot, function (textNode) {
-      wrapTextNode(textNode);
+      wrapTextNode(textNode, scopeRoot);
     });
   }
 
   function clear() {
     disconnectObserver();
 
+    unwrapTerms();
+    resetMatches();
+
+    if (observeChanges && matcher) {
+      connectObserver();
+    }
+  }
+
+  function unwrapTerms() {
     document.querySelectorAll(".hh-term").forEach(function (node) {
       node.replaceWith(document.createTextNode(node.textContent || ""));
     });
@@ -117,13 +126,11 @@
     if (document.body) {
       document.body.normalize();
     }
+  }
 
+  function resetMatches() {
     matchCount = 0;
-    matchedTermKeys = new Set();
-
-    if (observeChanges && matcher) {
-      connectObserver();
-    }
+    matchedTermKeysBySection = new Map();
   }
 
   function walkTextNodes(root, callback) {
@@ -161,13 +168,15 @@
     nodes.forEach(callback);
   }
 
-  function wrapTextNode(textNode) {
+  function wrapTextNode(textNode, scopeRoot) {
     if (maxMatches > 0 && matchCount >= maxMatches) {
       return;
     }
 
     var text = textNode.nodeValue;
     var fragment = document.createDocumentFragment();
+    var sectionKey = getSectionKey(textNode, scopeRoot);
+    var matchedTermKeys = getSectionTermKeys(sectionKey);
     var lastIndex = 0;
     var match;
 
@@ -178,7 +187,7 @@
       var termKey = getLookupKey(matchedText);
       var term = hintLookup.get(termKey);
 
-      if (!term || matchedTermKeys.has(termKey)) {
+      if (!term || matchedTermKeys.has(termKey) || isParenthesizedMatch(text, match.index, matchedText.length)) {
         continue;
       }
 
@@ -230,15 +239,53 @@
     return Boolean(element.closest(selector));
   }
 
-  function getWrappedTermKeys(root) {
-    var keys = new Set();
+  function getWrappedTermKeysBySection(root) {
+    var keysBySection = new Map();
     var wrappedTerms = root ? root.querySelectorAll(".hh-term") : [];
 
     wrappedTerms.forEach(function (node) {
+      var sectionKey = getSectionKey(node, root);
+      var keys = keysBySection.get(sectionKey);
+
+      if (!keys) {
+        keys = new Set();
+        keysBySection.set(sectionKey, keys);
+      }
+
       keys.add(getLookupKey(node.textContent || ""));
     });
 
+    return keysBySection;
+  }
+
+  function getSectionTermKeys(sectionKey) {
+    var keys = matchedTermKeysBySection.get(sectionKey);
+
+    if (!keys) {
+      keys = new Set();
+      matchedTermKeysBySection.set(sectionKey, keys);
+    }
+
     return keys;
+  }
+
+  function getSectionKey(node, root) {
+    var sectionKey = "__before_first_h1_h2_h3__";
+    var headings = root ? root.querySelectorAll("h1,h2,h3") : [];
+
+    headings.forEach(function (heading) {
+      var position = heading.compareDocumentPosition(node);
+
+      if (position & Node.DOCUMENT_POSITION_FOLLOWING) {
+        sectionKey = heading;
+      }
+    });
+
+    return sectionKey;
+  }
+
+  function isParenthesizedMatch(text, index, length) {
+    return text[index - 1] === "(" && text[index + length] === ")";
   }
 
   function parseCsv(csvText) {
@@ -539,8 +586,19 @@
 
     refreshTimer = window.setTimeout(function () {
       refreshTimer = null;
-      refresh();
+      rescan();
     }, 120);
+  }
+
+  function rescan() {
+    disconnectObserver();
+    unwrapTerms();
+    resetMatches();
+    refresh();
+
+    if (observeChanges && matcher) {
+      connectObserver();
+    }
   }
 
   function getDatasetValue(name) {

@@ -94,16 +94,21 @@
       return;
     }
 
-    var scopeRoot = document.querySelector(scopeSelector) || document.body;
-    var scanRoot = root || scopeRoot;
-    if (!scanRoot) {
+    var scopeRoots = getScopeRoots();
+    if (!scopeRoots.length) {
       return;
     }
 
-    matchedTermKeysBySection = getWrappedTermKeysBySection(scopeRoot);
+    matchedTermKeysBySection = getWrappedTermKeysBySection(scopeRoots);
 
-    walkTextNodes(scanRoot, function (textNode) {
-      wrapTextNode(textNode, scopeRoot);
+    var scanRoots = root ? getScopedScanRoots(root, scopeRoots) : scopeRoots;
+
+    scanRoots.forEach(function (scanRoot) {
+      var scopeRoot = getContainingScopeRoot(scanRoot, scopeRoots);
+
+      walkTextNodes(scanRoot, function (textNode) {
+        wrapTextNode(textNode, scopeRoot);
+      });
     });
   }
 
@@ -239,23 +244,58 @@
     return Boolean(element.closest(selector));
   }
 
-  function getWrappedTermKeysBySection(root) {
+  function getWrappedTermKeysBySection(roots) {
     var keysBySection = new Map();
-    var wrappedTerms = root ? root.querySelectorAll(".hh-term") : [];
 
-    wrappedTerms.forEach(function (node) {
-      var sectionKey = getSectionKey(node, root);
-      var keys = keysBySection.get(sectionKey);
+    roots.forEach(function (root) {
+      var wrappedTerms = root ? root.querySelectorAll(".hh-term") : [];
 
-      if (!keys) {
-        keys = new Set();
-        keysBySection.set(sectionKey, keys);
-      }
+      wrappedTerms.forEach(function (node) {
+        var sectionKey = getSectionKey(node, root);
+        var keys = keysBySection.get(sectionKey);
 
-      keys.add(getLookupKey(node.textContent || ""));
+        if (!keys) {
+          keys = new Set();
+          keysBySection.set(sectionKey, keys);
+        }
+
+        keys.add(getLookupKey(node.textContent || ""));
+      });
     });
 
     return keysBySection;
+  }
+
+  function getScopeRoots() {
+    var roots = Array.prototype.slice.call(document.querySelectorAll(scopeSelector));
+    return roots.length ? roots : [document.body].filter(Boolean);
+  }
+
+  function getContainingScopeRoot(node, scopeRoots) {
+    var element = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+    var containingRoot = scopeRoots.find(function (scopeRoot) {
+      return scopeRoot === element || scopeRoot.contains(element);
+    });
+
+    return containingRoot || scopeRoots[0] || document.body;
+  }
+
+  function getScopedScanRoots(root, scopeRoots) {
+    var element = root.nodeType === Node.ELEMENT_NODE ? root : root.parentElement;
+
+    if (!element) {
+      return [];
+    }
+
+    return scopeRoots.reduce(function (targets, scopeRoot) {
+      if (scopeRoot === element || scopeRoot.contains(element)) {
+        targets.push(element);
+      } else if (element.contains(scopeRoot)) {
+        targets.push(scopeRoot);
+      }
+
+      return targets;
+    }, []);
   }
 
   function getSectionTermKeys(sectionKey) {

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hover Hints Demo</title>
+  <style>
+    body {
+      color: #202124;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 48px;
+    }
+
+    main {
+      max-width: 760px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Hover Hints Demo</h1>
+    <p>
+      This HTML page includes an API guide with a CSV-powered tooltip. It can explain
+      payment terms, webhook behaviour, and other words without changing the source copy.
+    </p>
+    <p>
+      Links are skipped by default, so <a href="#">API inside a link</a> is left alone.
+    </p>
+  </main>
+
+  <script id="hover-hints-csv" type="text/plain">
+word,hint
+API,"A way for software systems to talk to each other."
+CSV,"Comma-separated values: a simple text format for tabular data."
+tooltip,"A small hint shown when someone hovers over or focuses an item."
+payment,"The movement of money from one party to another."
+webhook,"An automated message sent from one app to another when something happens."
+HTML,"The markup language used to structure content on web pages."
+  </script>
+  <script src="./hover-hints.js" data-csv-selector="#hover-hints-csv"></script>
+</body>
+</html>

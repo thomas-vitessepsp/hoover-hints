@@ -242,7 +242,7 @@
 
     var skippedTags = "script, style, noscript, iframe, canvas, svg, textarea, input, select, option, h1, h2, h3, h4, h5, h6";
     var interactiveTags = "a, button, label, summary, [contenteditable='true']";
-    var selector = skippedTags + ", .hh-term, [data-hover-hints-skip]";
+    var selector = skippedTags + ", .hh-term, .hh-tooltip, [data-hover-hints-skip]";
 
     if (skipInteractive) {
       selector += ", " + interactiveTags;
@@ -826,6 +826,10 @@
       var shouldRefreshScope = false;
 
       mutations.forEach(function (mutation) {
+        if (isHoverHintsUiNode(mutation.target)) {
+          return;
+        }
+
         if (mutation.type === "characterData" && mutation.target.parentElement) {
           refresh(mutation.target.parentElement);
           shouldRefreshScope = true;
@@ -833,6 +837,10 @@
         }
 
         mutation.addedNodes.forEach(function (node) {
+          if (isHoverHintsUiNode(node)) {
+            return;
+          }
+
           if (node.nodeType === Node.TEXT_NODE && node.parentElement) {
             refresh(node.parentElement);
             shouldRefreshScope = true;
@@ -849,6 +857,11 @@
     });
 
     observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+  }
+
+  function isHoverHintsUiNode(node) {
+    var element = node && node.nodeType === Node.ELEMENT_NODE ? node : node && node.parentElement;
+    return Boolean(element && element.closest("#hover-hints-tooltip, #hover-hints-styles, .hh-tooltip"));
   }
 
   function disconnectObserver() {

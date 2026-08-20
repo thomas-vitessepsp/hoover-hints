@@ -483,7 +483,7 @@
       ".hh-term{border-bottom:1px dotted currentColor;cursor:help;position:relative;text-decoration:none}",
       ".hh-term:focus{outline:2px solid #4f46e5;outline-offset:2px}",
       ".hh-tooltip{background:#171717;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.18);color:#fff;font:500 13px/1.35 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;left:0;max-width:min(320px,calc(100vw - 24px));opacity:0;padding:8px 10px;pointer-events:none;position:fixed;text-align:left;top:0;transform:translateY(4px);transition:opacity .16s ease,transform .16s ease;visibility:hidden;white-space:normal;width:max-content;z-index:2147483647}",
-      ".hh-tooltip[data-mode='page']{background:#fff;color:#171717;max-height:calc(100vh - 24px);max-width:min(760px,calc(100vw - 24px));padding:0;pointer-events:auto;width:auto}",
+      ".hh-tooltip[data-mode='page']{background:#fff;color:#171717;max-height:calc(100vh - 24px);max-width:min(920px,calc(100vw - 24px));padding:0;pointer-events:auto;width:auto}",
       ".hh-tooltip[data-visible='true']{opacity:1;transform:translateY(0);visibility:visible}",
       ".hh-tooltip::before{border:6px solid transparent;content:'';left:var(--hh-arrow-left,50%);position:absolute;transform:translateX(-50%)}",
       ".hh-tooltip[data-placement='top']::before{border-top-color:#171717;top:100%}",
@@ -492,7 +492,7 @@
       ".hh-tooltip[data-mode='page'][data-placement='bottom']::before{border-bottom-color:#fff}",
       ".hh-page-status{align-items:center;display:flex;min-height:96px;padding:18px 20px}",
       ".hh-page-error{color:#b91c1c}",
-      ".hh-page-frame{background:#fff;border:0;display:block;height:auto;max-height:calc(100vh - 48px);overflow:hidden;width:min(560px,calc(100vw - 24px))}"
+      ".hh-page-frame{background:#fff;border:0;display:block;height:auto;max-height:calc(100vh - 48px);overflow:hidden;width:min(920px,calc(100vw - 24px))}"
     ].join("");
 
     document.head.appendChild(style);
@@ -651,7 +651,7 @@
     var body = frameDocument.body;
     var viewportWidth = document.documentElement.clientWidth;
     var viewportHeight = document.documentElement.clientHeight;
-    var maxWidth = Math.min(760, viewportWidth - 24);
+    var maxWidth = Math.min(920, viewportWidth - 24);
     var maxHeight = viewportHeight - 48;
     var contentWidth = Math.max(
       body ? body.scrollWidth : 0,
@@ -705,7 +705,9 @@
     preview.querySelectorAll(".lightbox-inner > img").forEach(function (image) {
       var lightbox = image.closest(".img.lightbox");
       if (lightbox) {
-        lightbox.replaceWith(image.cloneNode(true));
+        var clonedImage = image.cloneNode(true);
+        clonedImage.classList.add("hh-lightbox-image");
+        lightbox.replaceWith(clonedImage);
       }
     });
 
@@ -732,6 +734,7 @@
       "ul{list-style:disc}",
       "ol{list-style:decimal}",
       "img{border:1px solid #e5e7eb;border-radius:4px;display:block;height:auto;margin:12px 0;max-height:220px;max-width:100%;object-fit:contain}",
+      "img.hh-lightbox-image{min-width:800px}",
       "br{display:none}",
       "a{color:#831fbf;text-decoration:none}",
       "a:hover{text-decoration:underline}",

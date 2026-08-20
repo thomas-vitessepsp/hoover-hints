@@ -404,7 +404,7 @@
         return row.word && row.hint;
       })
       .map(function (row) {
-        var url = getRootRelativeHintUrl(row.hint);
+        var url = getPageHintUrl(row.hint);
         return {
           word: row.word,
           hint: row.hint,
@@ -417,13 +417,19 @@
       });
   }
 
-  function getRootRelativeHintUrl(value) {
+  function getPageHintUrl(value) {
     if (!value || value.charAt(0) !== "/" || value.charAt(1) === "/") {
       return "";
     }
 
-    var url = new URL(value, window.location.origin);
+    var docsBase = getCurrentDocsBasePath();
+    var url = new URL(docsBase ? docsBase + value : value, window.location.origin);
     return url.origin === window.location.origin ? url.toString() : "";
+  }
+
+  function getCurrentDocsBasePath() {
+    var match = window.location.pathname.match(/^(.*?\/docs)(?:\/|$)/);
+    return match ? match[1] : "";
   }
 
   function getTermAriaLabel(matchedText, term) {

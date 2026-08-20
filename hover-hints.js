@@ -591,9 +591,8 @@
     var previewToken = activePreviewToken + 1;
     activePreviewToken = previewToken;
 
-    renderPageStatus(hintTooltip, "Loading preview...");
+    hintTooltip.textContent = "";
     positionTooltip();
-    hintTooltip.dataset.visible = "true";
 
     getPagePreview(hintUrl)
       .then(function (srcdoc) {
@@ -602,7 +601,6 @@
         }
 
         renderPageFrame(hintTooltip, srcdoc, term.textContent || "Hint preview");
-        positionTooltip();
       })
       .catch(function () {
         if (previewToken !== activePreviewToken || term !== activeTerm) {
@@ -611,6 +609,7 @@
 
         renderPageStatus(hintTooltip, "Could not load preview.", true);
         positionTooltip();
+        hintTooltip.dataset.visible = "true";
       });
   }
 
@@ -632,6 +631,9 @@
     frame.addEventListener("load", function () {
       resizePageFrame(frame);
       positionTooltip();
+      window.requestAnimationFrame(function () {
+        hintTooltip.dataset.visible = "true";
+      });
     });
     frame.srcdoc = srcdoc;
 

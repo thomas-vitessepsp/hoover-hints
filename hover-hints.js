@@ -20,6 +20,8 @@
   var refreshTimer = null;
   var tooltip = null;
   var activeTerm = null;
+  var activePreviewToken = 0;
+  var pagePreviewCache = new Map();
 
   if (csvUrl) {
     csvUrl = new URL(csvUrl, scriptUrl).toString();
@@ -203,8 +205,12 @@
       var wrapped = document.createElement("span");
       wrapped.className = "hh-term";
       wrapped.tabIndex = 0;
-      wrapped.setAttribute("aria-label", matchedText + ": " + term.hint);
+      wrapped.setAttribute("aria-label", getTermAriaLabel(matchedText, term));
       wrapped.dataset.hhHint = term.hint;
+      wrapped.dataset.hhHintType = term.type;
+      if (term.url) {
+        wrapped.dataset.hhHintUrl = term.url;
+      }
       wrapped.textContent = matchedText;
       fragment.appendChild(wrapped);
 
@@ -397,9 +403,35 @@
       .filter(function (row) {
         return row.word && row.hint;
       })
+      .map(function (row) {
+        var url = getRootRelativeHintUrl(row.hint);
+        return {
+          word: row.word,
+          hint: row.hint,
+          type: url ? "page" : "text",
+          url: url
+        };
+      })
       .sort(function (a, b) {
         return b.word.length - a.word.length;
       });
+  }
+
+  function getRootRelativeHintUrl(value) {
+    if (!value || value.charAt(0) !== "/" || value.charAt(1) === "/") {
+      return "";
+    }
+
+    var url = new URL(value, window.location.origin);
+    return url.origin === window.location.origin ? url.toString() : "";
+  }
+
+  function getTermAriaLabel(matchedText, term) {
+    if (term.type === "page") {
+      return matchedText + ": opens preview for " + term.hint;
+    }
+
+    return matchedText + ": " + term.hint;
   }
 
   function buildMatcher(rows) {
@@ -444,10 +476,16 @@
       ".hh-term{border-bottom:1px dotted currentColor;cursor:help;position:relative;text-decoration:none}",
       ".hh-term:focus{outline:2px solid #4f46e5;outline-offset:2px}",
       ".hh-tooltip{background:#171717;border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.18);color:#fff;font:500 13px/1.35 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;left:0;max-width:min(320px,calc(100vw - 24px));opacity:0;padding:8px 10px;pointer-events:none;position:fixed;text-align:left;top:0;transform:translateY(4px);transition:opacity .16s ease,transform .16s ease;visibility:hidden;white-space:normal;width:max-content;z-index:2147483647}",
+      ".hh-tooltip[data-mode='page']{background:#fff;color:#171717;max-width:min(760px,calc(100vw - 24px));padding:0;pointer-events:auto;width:min(760px,calc(100vw - 24px))}",
       ".hh-tooltip[data-visible='true']{opacity:1;transform:translateY(0);visibility:visible}",
       ".hh-tooltip::before{border:6px solid transparent;content:'';left:var(--hh-arrow-left,50%);position:absolute;transform:translateX(-50%)}",
       ".hh-tooltip[data-placement='top']::before{border-top-color:#171717;top:100%}",
-      ".hh-tooltip[data-placement='bottom']::before{border-bottom-color:#171717;bottom:100%}"
+      ".hh-tooltip[data-placement='bottom']::before{border-bottom-color:#171717;bottom:100%}",
+      ".hh-tooltip[data-mode='page'][data-placement='top']::before{border-top-color:#fff}",
+      ".hh-tooltip[data-mode='page'][data-placement='bottom']::before{border-bottom-color:#fff}",
+      ".hh-page-status{align-items:center;display:flex;min-height:96px;padding:18px 20px}",
+      ".hh-page-error{color:#b91c1c}",
+      ".hh-page-frame{background:#fff;border:0;display:block;height:min(520px,calc(100vh - 48px));width:100%}"
     ].join("");
 
     document.head.appendChild(style);
@@ -470,7 +508,7 @@
 
     document.addEventListener("mouseout", function (event) {
       var term = getHintTerm(event.target);
-      if (term && !term.contains(event.relatedTarget)) {
+      if (term && !term.contains(event.relatedTarget) && !isTooltipTarget(event.relatedTarget)) {
         hideTooltip(term);
       }
     });
@@ -490,6 +528,10 @@
     return target && target.closest ? target.closest(".hh-term") : null;
   }
 
+  function isTooltipTarget(target) {
+    return Boolean(tooltip && target && tooltip.contains(target));
+  }
+
   function ensureTooltip() {
     if (tooltip) {
       return tooltip;
@@ -500,6 +542,11 @@
     tooltip.id = "hover-hints-tooltip";
     tooltip.setAttribute("role", "tooltip");
     tooltip.hidden = true;
+    tooltip.addEventListener("mouseleave", function () {
+      if (activeTerm && document.activeElement !== activeTerm) {
+        hideTooltip(activeTerm);
+      }
+    });
     document.body.appendChild(tooltip);
     return tooltip;
   }
@@ -514,11 +561,130 @@
     term.setAttribute("aria-describedby", "hover-hints-tooltip");
 
     var hintTooltip = ensureTooltip();
-    hintTooltip.textContent = hint;
+    var hintType = term.dataset.hhHintType || "text";
+    hintTooltip.dataset.mode = hintType;
     hintTooltip.hidden = false;
     hintTooltip.dataset.visible = "false";
+
+    if (hintType === "page") {
+      showPageTooltip(term, hintTooltip);
+    } else {
+      activePreviewToken += 1;
+      hintTooltip.textContent = hint;
+      positionTooltip();
+      hintTooltip.dataset.visible = "true";
+    }
+  }
+
+  function showPageTooltip(term, hintTooltip) {
+    var hintUrl = term.dataset.hhHintUrl;
+    var previewToken = activePreviewToken + 1;
+    activePreviewToken = previewToken;
+
+    renderPageStatus(hintTooltip, "Loading preview...");
     positionTooltip();
     hintTooltip.dataset.visible = "true";
+
+    getPagePreview(hintUrl)
+      .then(function (srcdoc) {
+        if (previewToken !== activePreviewToken || term !== activeTerm) {
+          return;
+        }
+
+        renderPageFrame(hintTooltip, srcdoc, term.textContent || "Hint preview");
+        positionTooltip();
+      })
+      .catch(function () {
+        if (previewToken !== activePreviewToken || term !== activeTerm) {
+          return;
+        }
+
+        renderPageStatus(hintTooltip, "Could not load preview.", true);
+        positionTooltip();
+      });
+  }
+
+  function renderPageStatus(hintTooltip, message, isError) {
+    var status = document.createElement("div");
+    status.className = "hh-page-status" + (isError ? " hh-page-error" : "");
+    status.textContent = message;
+
+    hintTooltip.textContent = "";
+    hintTooltip.appendChild(status);
+  }
+
+  function renderPageFrame(hintTooltip, srcdoc, title) {
+    var frame = document.createElement("iframe");
+    frame.className = "hh-page-frame";
+    frame.title = title;
+    frame.setAttribute("sandbox", "");
+    frame.srcdoc = srcdoc;
+
+    hintTooltip.textContent = "";
+    hintTooltip.appendChild(frame);
+  }
+
+  function getPagePreview(url) {
+    if (!url) {
+      return Promise.reject(new Error("Missing preview URL."));
+    }
+
+    if (!pagePreviewCache.has(url)) {
+      pagePreviewCache.set(url, fetch(url, { credentials: "same-origin" })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error("Could not load preview: " + response.status + " " + response.statusText);
+          }
+
+          return response.text();
+        })
+        .then(function (html) {
+          return buildPagePreviewSrcdoc(html, url);
+        }));
+    }
+
+    return pagePreviewCache.get(url);
+  }
+
+  function buildPagePreviewSrcdoc(html, url) {
+    var parsed = new DOMParser().parseFromString(html, "text/html");
+    var content = parsed.querySelector(".rm-Markdown.markdown-body[data-testid='RDMD']") ||
+      parsed.querySelector(".rm-Markdown.markdown-body") ||
+      parsed.querySelector(".markdown-body") ||
+      parsed.querySelector("main") ||
+      parsed.body;
+    var preview = content.cloneNode(true);
+
+    preview.querySelectorAll("script, iframe, object, embed").forEach(function (node) {
+      node.remove();
+    });
+
+    return [
+      "<!doctype html>",
+      "<html>",
+      "<head>",
+      "<base href=\"" + escapeHtml(url) + "\">",
+      "<meta charset=\"utf-8\">",
+      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
+      "<style>",
+      "body{box-sizing:border-box;margin:0;padding:18px 20px;color:#171717;background:#fff;font:400 14px/1.55 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
+      "*,::before,::after{box-sizing:inherit}",
+      "p,ol,ul,table,pre,blockquote{margin-top:0}",
+      "img{border-radius:4px;height:auto;max-width:100%}",
+      "a{color:#831fbf;text-decoration:none}",
+      "a:hover{text-decoration:underline}",
+      "code,pre{background:#f6f2f8;border-radius:4px}",
+      "code{padding:.12em .28em}",
+      "pre{overflow:auto;padding:12px}",
+      "table{border-collapse:collapse;width:100%}",
+      "td,th{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}",
+      "</style>",
+      "</head>",
+      "<body>",
+      preview.innerHTML,
+      "</body>",
+      "</html>"
+    ].join("");
   }
 
   function hideTooltip(term) {
@@ -531,6 +697,7 @@
     }
 
     activeTerm = null;
+    activePreviewToken += 1;
 
     if (tooltip) {
       tooltip.dataset.visible = "false";
@@ -652,6 +819,18 @@
 
   function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, function (char) {
+      return {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#39;"
+      }[char];
+    });
   }
 
   function whenReady(callback) {

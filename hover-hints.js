@@ -490,6 +490,8 @@
       ".hh-tooltip[data-placement='bottom']::before{border-bottom-color:#171717;bottom:100%}",
       ".hh-tooltip[data-mode='page'][data-placement='top']::before{border-top-color:#fff}",
       ".hh-tooltip[data-mode='page'][data-placement='bottom']::before{border-bottom-color:#fff}",
+      ".hh-page-close{align-items:center;background:rgba(255,255,255,.96);border:1px solid #d1d5db;border-radius:9999px;box-shadow:0 2px 8px rgba(0,0,0,.14);color:#171717;cursor:pointer;display:flex;font:700 14px/1 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:28px;justify-content:center;padding:0;position:absolute;right:8px;top:8px;width:28px;z-index:2}",
+      ".hh-page-close:hover,.hh-page-close:focus{background:#171717;border-color:#171717;color:#fff;outline:none}",
       ".hh-page-status{align-items:center;display:flex;min-height:96px;padding:18px 20px}",
       ".hh-page-error{color:#b91c1c}",
       ".hh-page-frame{background:#fff;border:0;display:block;height:auto;max-height:calc(100vh - 48px);overflow:hidden;width:min(920px,calc(100vw - 24px))}"
@@ -623,7 +625,18 @@
   }
 
   function renderPageFrame(hintTooltip, srcdoc, title) {
+    var closeButton = document.createElement("button");
     var frame = document.createElement("iframe");
+    closeButton.className = "hh-page-close";
+    closeButton.type = "button";
+    closeButton.setAttribute("aria-label", "Close preview");
+    closeButton.textContent = "X";
+    closeButton.addEventListener("click", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      hideTooltip(activeTerm);
+    });
+
     frame.className = "hh-page-frame";
     frame.title = title;
     frame.setAttribute("sandbox", "allow-same-origin");
@@ -638,6 +651,7 @@
     frame.srcdoc = srcdoc;
 
     hintTooltip.textContent = "";
+    hintTooltip.appendChild(closeButton);
     hintTooltip.appendChild(frame);
   }
 

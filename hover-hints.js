@@ -734,7 +734,7 @@
       "ul{list-style:disc}",
       "ol{list-style:decimal}",
       "img{border:1px solid #e5e7eb;border-radius:4px;display:block;height:auto;margin:12px 0;max-height:220px;max-width:100%;object-fit:contain}",
-      "img.hh-lightbox-image{min-width:800px}",
+      "img.hh-lightbox-image{height:auto;max-height:none;max-width:none;min-width:800px;width:100%}",
       "br{display:none}",
       "a{color:#831fbf;text-decoration:none}",
       "a:hover{text-decoration:underline}",

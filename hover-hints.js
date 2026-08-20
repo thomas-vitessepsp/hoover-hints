@@ -491,7 +491,7 @@
       ".hh-tooltip[data-mode='page'][data-placement='bottom']::before{border-bottom-color:#fff}",
       ".hh-page-status{align-items:center;display:flex;min-height:96px;padding:18px 20px}",
       ".hh-page-error{color:#b91c1c}",
-      ".hh-page-frame{background:#fff;border:0;display:block;height:min(520px,calc(100vh - 48px));width:100%}"
+      ".hh-page-frame{background:#fff;border:0;display:block;height:min(360px,calc(100vh - 48px));width:100%}"
     ].join("");
 
     document.head.appendChild(style);
@@ -654,15 +654,27 @@
 
   function buildPagePreviewSrcdoc(html, url) {
     var parsed = new DOMParser().parseFromString(html, "text/html");
-    var content = parsed.querySelector(".rm-Markdown.markdown-body[data-testid='RDMD']") ||
+    var content = parsed.querySelector("article.rm-Article .rm-Markdown.markdown-body[data-testid='RDMD']") ||
+      parsed.querySelector(".rm-Markdown.markdown-body[data-testid='RDMD']") ||
       parsed.querySelector(".rm-Markdown.markdown-body") ||
       parsed.querySelector(".markdown-body") ||
       parsed.querySelector("main") ||
       parsed.body;
     var preview = content.cloneNode(true);
 
-    preview.querySelectorAll("script, iframe, object, embed").forEach(function (node) {
+    preview.querySelectorAll("script, style, link, iframe, object, embed").forEach(function (node) {
       node.remove();
+    });
+
+    preview.querySelectorAll(".lightbox-inner > img").forEach(function (image) {
+      var lightbox = image.closest(".img.lightbox");
+      if (lightbox) {
+        lightbox.replaceWith(image.cloneNode(true));
+      }
+    });
+
+    preview.querySelectorAll("[style]").forEach(function (node) {
+      node.removeAttribute("style");
     });
 
     return [
@@ -673,10 +685,18 @@
       "<meta charset=\"utf-8\">",
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">",
       "<style>",
-      "body{box-sizing:border-box;margin:0;padding:18px 20px;color:#171717;background:#fff;font:400 14px/1.55 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
+      "html{background:#fff}",
+      "body{box-sizing:border-box;margin:0;padding:16px 18px;color:#171717;background:#fff;font:400 14px/1.5 system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}",
       "*,::before,::after{box-sizing:inherit}",
-      "p,ol,ul,table,pre,blockquote{margin-top:0}",
-      "img{border-radius:4px;height:auto;max-width:100%}",
+      "body>*:first-child{margin-top:0!important}",
+      "body>*:last-child{margin-bottom:0!important}",
+      "p,ol,ul,table,pre,blockquote{margin-top:0;margin-bottom:12px}",
+      "ol,ul{padding-left:1.35rem}",
+      "li{margin:0 0 4px}",
+      "ul{list-style:disc}",
+      "ol{list-style:decimal}",
+      "img{border:1px solid #e5e7eb;border-radius:4px;display:block;height:auto;margin:12px 0;max-height:220px;max-width:100%;object-fit:contain}",
+      "br{display:none}",
       "a{color:#831fbf;text-decoration:none}",
       "a:hover{text-decoration:underline}",
       "code,pre{background:#f6f2f8;border-radius:4px}",

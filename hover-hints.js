@@ -424,7 +424,8 @@
     }
 
     if (value.charAt(0) === "/" && value.charAt(1) !== "/") {
-      return new URL(value, window.location.origin).toString();
+      var docsBase = getCurrentDocsBasePath();
+      return new URL(docsBase ? docsBase + value : value, window.location.origin).toString();
     }
 
     if (value.indexOf("https://") === 0) {
@@ -436,6 +437,11 @@
     }
 
     return "";
+  }
+
+  function getCurrentDocsBasePath() {
+    var match = window.location.pathname.match(/^(.*?\/docs)(?:\/|$)/);
+    return match ? match[1] : "";
   }
 
   function getTermAriaLabel(matchedText, term) {

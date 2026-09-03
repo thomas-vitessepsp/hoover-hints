@@ -419,18 +419,23 @@
   }
 
   function getPageHintUrl(value) {
-    if (!value || value.charAt(0) !== "/" || value.charAt(1) === "/") {
+    if (!value) {
       return "";
     }
 
-    var docsBase = getCurrentDocsBasePath();
-    var url = new URL(docsBase ? docsBase + value : value, window.location.origin);
-    return url.origin === window.location.origin ? url.toString() : "";
-  }
+    if (value.charAt(0) === "/" && value.charAt(1) !== "/") {
+      return new URL(value, window.location.origin).toString();
+    }
 
-  function getCurrentDocsBasePath() {
-    var match = window.location.pathname.match(/^(.*?\/docs)(?:\/|$)/);
-    return match ? match[1] : "";
+    if (value.indexOf("https://") === 0) {
+      try {
+        return new URL(value).toString();
+      } catch (error) {
+        return "";
+      }
+    }
+
+    return "";
   }
 
   function getTermAriaLabel(matchedText, term) {

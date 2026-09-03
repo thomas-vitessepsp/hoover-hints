@@ -1,5 +1,5 @@
 word,hint
 "account's settlement details",/locate-account-settlement-details
-"find account details using MAS",/locate-account-settlement-details
+"account properties in MAS",/locate-account-settlement-details
 MAS,"Merchant Administration System, the legacy portal to manage Vitesse services."
 omnibus,"An omnibus account is a bank account that temporarily receives funds before they are allocated to their final destination(s)."

@@ -1,4 +1,6 @@
 word,hint
+"Omnibus funding","Funding through a shared bank account that temporarily receives incoming funds before they are allocated to their intended Vitesse account(s)."
+"Direct funding","Funding directly into a Vitesse account using its unique bank details."
 "account's settlement details",/locate-account-settlement-details
 "Account Properties page in MAS",/locate-account-settlement-details
 MAS,"Merchant Administration System, the legacy portal to manage Vitesse services."
